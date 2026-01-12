@@ -1,0 +1,135 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  user-service:
+    build: ./services/user-service
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ecommerce_users
+      - JWT_SECRET=your-secret-key-change-in-production
+      - PORT=3001
+    depends_on:
+      - postgres
+    volumes:
+      - user_service_data:/app
+
+  product-service:
+    build: ./services/product-service
+    ports:
+      - "3002:3002"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ecommerce_products
+      - PORT=3002
+    depends_on:
+      - postgres
+    volumes:
+      - product_service_data:/app
+
+  cart-service:
+    build: ./services/cart-service
+    ports:
+      - "3003:3003"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ecommerce_carts
+      - REDIS_URL=redis://redis:6379
+      - PORT=3003
+      - PRODUCT_SERVICE_URL=http://product-service:3002
+      - CART_SERVICE_URL=http://cart-service:3003
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - cart_service_data:/app
+
+  order-service:
+    build: ./services/order-service
+    ports:
+    - "3004:3004"
+    environment:
+    - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ecommerce_orders
+    - PORT=3004
+    - CART_SERVICE_URL=http://cart-service:3003
+    - PRODUCT_SERVICE_URL=http://product-service:3002
+    - INVENTORY_SERVICE_URL=http://inventory-service:3005
+    depends_on:
+    - postgres
+    - cart-service
+    - inventory-service
+    volumes:
+    - order_service_data:/app
+
+  inventory-service:
+    build: ./services/inventory-service
+    ports:
+      - "3005:3005"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ecommerce_inventory
+      - PORT=3005
+      - PRODUCT_SERVICE_URL=http://product-service:3002
+    depends_on:
+      - postgres
+      - product-service
+    volumes:
+      - inventory_service_data:/app
+
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - USER_SERVICE_URL=http://user-service:3001
+      - PRODUCT_SERVICE_URL=http://product-service:3002
+      - CART_SERVICE_URL=http://cart-service:3003
+      - ORDER_SERVICE_URL=http://order-service:3004
+      - INVENTORY_SERVICE_URL=http://inventory-service:3005
+      - PORT=3000
+    depends_on:
+      - user-service
+      - product-service
+      - cart-service
+      - order-service
+      - inventory-service
+    volumes:
+      - ./api-gateway:/app
+      - /app/node_modules
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3000
+    volumes:
+      - frontend_data:/app/node_modules
+      - ./frontend:/app
+    depends_on:
+      - api-gateway
+
+volumes:
+  postgres_data:
+  redis_data:
+  frontend_data:
+  user_service_data:
+  product_service_data:
+  cart_service_data:
+  order_service_data:
+  inventory_service_data:

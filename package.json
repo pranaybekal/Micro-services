@@ -1,0 +1,21 @@
+{
+  "name": "ecommerce-microservices",
+  "version": "1.0.0",
+  "description": "Modular e-commerce platform with microservices architecture",
+  "scripts": {
+    "install:all": "npm run install:services && npm run install:frontend && npm run install:gateway",
+    "install:services": "cd services/user-service && npm install && cd ../product-service && npm install && cd ../cart-service && npm install && cd ../order-service && npm install && cd ../inventory-service && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "install:gateway": "cd api-gateway && npm install",
+    "dev:gateway": "cd api-gateway && npm run dev",
+    "dev:user": "cd services/user-service && npm run dev",
+    "dev:product": "cd services/product-service && npm run dev",
+    "dev:cart": "cd services/cart-service && npm run dev",
+    "dev:order": "cd services/order-service && npm run dev",
+    "dev:inventory": "cd services/inventory-service && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev"
+  },
+  "keywords": ["ecommerce", "microservices", "react", "express", "postgresql"],
+  "author": "",
+  "license": "MIT"
+}
