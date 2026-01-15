@@ -76,7 +76,7 @@ export const orderAPI = {
 export const inventoryAPI = {
   getAll: () => api.get('/api/inventory'),
   getByProductId: (productId) => api.get(`/api/inventory/${productId}`),
-  addProduct: (data) => api.post('/api/inventory/add-product', data),
+  addProduct: (data) => api.post('/api/inventory', data),
   update: (productId, data) => api.put(`/api/inventory/${productId}`, data),
   getLowStock: () => api.get('/api/inventory/alerts/low-stock'),
 };

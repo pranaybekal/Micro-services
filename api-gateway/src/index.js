@@ -19,23 +19,21 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '1mb' }));
 
-// Handle OPTIONS requests
+// ⚠️ IMPORTANT:
+// ❌ DO NOT USE express.json() IN A PROXY GATEWAY
+// ❌ DO NOT READ REQUEST BODY
+
 app.options('*', cors(corsOptions));
 
 // =========================
-// GLOBAL REQUEST LOGGER
+// GLOBAL REQUEST LOGGER (SAFE)
 // =========================
 app.use((req, res, next) => {
   const start = Date.now();
 
   console.log(`\n➡️  [REQUEST] ${req.method} ${req.originalUrl}`);
   console.log(`   IP: ${req.ip}`);
-
-  if (Object.keys(req.body || {}).length > 0) {
-    console.log(`   Body:`, req.body);
-  }
 
   res.on('finish', () => {
     const time = Date.now() - start;
@@ -61,7 +59,7 @@ const services = {
 // =========================
 // HEALTH CHECK
 // =========================
-app.get('/health', async (req, res) => {
+app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     service: 'api-gateway',
@@ -70,28 +68,20 @@ app.get('/health', async (req, res) => {
 });
 
 // =========================
-// PROXY HELPER WITH BODY FIX
+// PROXY HELPER (STREAMING SAFE)
 // =========================
 const proxyWithLogs = (serviceName, target) =>
   createProxyMiddleware({
     target,
     changeOrigin: true,
-
     timeout: 30000,
     proxyTimeout: 30000,
 
     onProxyReq: (proxyReq, req) => {
-      console.log(`🔀 [PROXY → ${serviceName}] ${req.method} ${req.originalUrl}`);
-
-      // 🔥 IMPORTANT FIX: Forward JSON body
-      if (req.body && Object.keys(req.body).length > 0) {
-        const bodyData = JSON.stringify(req.body);
-
-        proxyReq.setHeader('Content-Type', 'application/json');
-        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-
-        proxyReq.write(bodyData);
-      }
+      console.log(
+        `🔀 [PROXY → ${serviceName}] ${req.method} ${req.originalUrl}`
+      );
+      // ✅ Let the stream pass naturally
     },
 
     onProxyRes: (proxyRes, req) => {

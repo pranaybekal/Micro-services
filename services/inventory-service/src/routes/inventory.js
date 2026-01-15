@@ -38,6 +38,22 @@ router.post('/init', async (req, res) => {
   }
 });
 
+// =====================================================
+// GET ALL INVENTORY
+// =====================================================
+router.get('/', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM inventory ORDER BY product_id`
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get all inventory error:', error.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 
 // =====================================================
 // CREATE PRODUCT + INVENTORY (ADMIN FLOW)

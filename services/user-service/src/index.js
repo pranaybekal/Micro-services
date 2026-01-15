@@ -1,11 +1,13 @@
+// 1️⃣ Load environment variables FIRST
+require("dotenv").config();
+
+
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
+
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const { initDatabase } = require('./config/database');
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -17,7 +19,6 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-
 
 // Health check
 app.get('/health', (req, res) => {
