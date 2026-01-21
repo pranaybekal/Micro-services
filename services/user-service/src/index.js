@@ -1,6 +1,6 @@
-require('./tracing');
+// ⚠️ DO NOT import tracing.js here
+// It must be preloaded using node -r
 
-// 1️⃣ Load environment variables FIRST
 require("dotenv").config();
 
 const express = require('express');
@@ -14,19 +14,15 @@ const { initDatabase } = require('./config/database');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// =========================
-// Middleware
-// =========================
+// -------------------- Middleware --------------------
 app.use(cors());
 app.use(express.json());
 
-// =========================
-// Metrics (HTTP requests)
-// =========================
+// -------------------- Custom Metrics --------------------
 const meter = metrics.getMeter(process.env.OTEL_SERVICE_NAME || 'user-service');
 
 const httpRequestCounter = meter.createCounter('http_requests_total', {
-  description: 'Total number of HTTP requests',
+  description: 'Total HTTP requests',
 });
 
 app.use((req, res, next) => {
@@ -35,35 +31,28 @@ app.use((req, res, next) => {
       method: req.method,
       route: req.route?.path || req.path,
       status: res.statusCode,
-      service: process.env.OTEL_SERVICE_NAME || 'user-service',
     });
   });
   next();
 });
 
-// =========================
-// Routes
-// =========================
+// -------------------- Routes --------------------
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 
-// =========================
-// Health check
-// =========================
+// -------------------- Health --------------------
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'user-service' });
 });
 
-// =========================
-// Initialize database and start server
-// =========================
+// -------------------- Start --------------------
 initDatabase()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`User Service running on port ${PORT}`);
     });
   })
-  .catch((error) => {
-    console.error('Failed to initialize database:', error);
+  .catch((err) => {
+    console.error('DB init failed', err);
     process.exit(1);
   });

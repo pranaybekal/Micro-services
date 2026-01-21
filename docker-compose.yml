@@ -22,28 +22,68 @@ services:
     volumes:
       - redis_data:/data
 
-  # -------------------- JAEGER --------------------
-  jaeger:
-    image: jaegertracing/all-in-one:1.56
-    container_name: jaeger
-    ports:
-      - "16686:16686"   # UI
-    environment:
-        COLLECTOR_OTLP_ENABLED: "true"
-  # gRPC endpoint for collector
-
   # -------------------- OPENTELEMETRY COLLECTOR --------------------
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
+    image: otel/opentelemetry-collector-contrib:0.143.1
     container_name: otel-collector
     command: ["--config=/etc/otel/config.yaml"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel/config.yaml
     ports:
-      - "4318:4318"   # OTLP HTTP (Node.js uses this)
-      - "8889:8889"     # Prometheus metrics
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "9464:9464"   # Prometheus scrape
     depends_on:
-      - jaeger
+      - postgres
+      - redis
+
+  # -------------------- PROMETHEUS --------------------
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+
+  # -------------------- LOKI (LOGS) --------------------
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: loki
+    command: -config.file=/etc/loki/loki-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml
+      - loki_data:/loki
+
+
+  # -------------------- TEMPO (TRACES) --------------------
+  tempo:
+    image: grafana/tempo:2.3.1
+    container_name: tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo/tempo.yaml
+      - tempo_data:/var/tempo
+    ports:
+      - "3200:3200"   # Tempo UI
+
+  # -------------------- GRAFANA -------------------- 
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: grafana
+    ports:
+      - "3006:3000"
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
 
   # -------------------- USER SERVICE --------------------
   user-service:
@@ -54,15 +94,12 @@ services:
     environment:
       PORT: 3001
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ecommerce_users
-      JWT_SECRET: your-secret-key-change-in-production
+      JWT_SECRET: your-secret-key
       OTEL_SERVICE_NAME: user-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     depends_on:
       - postgres
       - otel-collector
-    volumes:
-      - ./services/user-service:/app
-      - /app/node_modules
 
   # -------------------- PRODUCT SERVICE --------------------
   product-service:
@@ -78,9 +115,6 @@ services:
     depends_on:
       - postgres
       - otel-collector
-    volumes:
-      - ./services/product-service:/app
-      - /app/node_modules
 
   # -------------------- CART SERVICE --------------------
   cart-service:
@@ -93,16 +127,12 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ecommerce_carts
       REDIS_URL: redis://redis:6379
       PRODUCT_SERVICE_URL: http://product-service:3002
-      CART_SERVICE_URL: http://cart-service:3003
       OTEL_SERVICE_NAME: cart-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     depends_on:
       - postgres
       - redis
       - otel-collector
-    volumes:
-      - ./services/cart-service:/app
-      - /app/node_modules
 
   # -------------------- INVENTORY SERVICE --------------------
   inventory-service:
@@ -120,9 +150,6 @@ services:
       - postgres
       - product-service
       - otel-collector
-    volumes:
-      - ./services/inventory-service:/app
-      - /app/node_modules
 
   # -------------------- ORDER SERVICE --------------------
   order-service:
@@ -143,9 +170,6 @@ services:
       - cart-service
       - inventory-service
       - otel-collector
-    volumes:
-      - ./services/order-service:/app
-      - /app/node_modules
 
   # -------------------- API GATEWAY --------------------
   api-gateway:
@@ -169,9 +193,6 @@ services:
       - order-service
       - inventory-service
       - otel-collector
-    volumes:
-      - ./api-gateway:/app
-      - /app/node_modules
 
   # -------------------- FRONTEND --------------------
   frontend:
@@ -183,11 +204,10 @@ services:
       VITE_API_URL: http://localhost:3000
     depends_on:
       - api-gateway
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
 
 volumes:
   postgres_data:
   redis_data:
-  frontend_data:
+  grafana_data:
+  loki_data:
+  tempo_data:

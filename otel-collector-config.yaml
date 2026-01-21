@@ -6,21 +6,49 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 
-exporters:
-  otlp:
-    endpoint: jaeger:4317
-    tls:
-      insecure: true
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 1024
 
+  # 🔥 THIS IS THE KEY FIX
+  resource:
+    attributes:
+      - key: service.name
+        from_attribute: service.name
+        action: upsert
+      - key: service.namespace
+        value: ecommerce
+        action: insert
+
+exporters:
+  # ---------- TRACES ----------
+  otlphttp/tempo:
+    endpoint: http://tempo:4318
+
+  # ---------- METRICS ----------
   prometheus:
-    endpoint: 0.0.0.0:8889
+    endpoint: 0.0.0.0:9464
+    resource_to_telemetry_conversion:
+      enabled: true   # 🔥 VERY IMPORTANT
+
+  # ---------- LOGS ----------
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
-      exporters: [otlp]
+      processors: [resource, batch]
+      exporters: [otlphttp/tempo]
 
     metrics:
       receivers: [otlp]
+      processors: [resource, batch]
       exporters: [prometheus]
+
+    logs:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [otlphttp/loki]
