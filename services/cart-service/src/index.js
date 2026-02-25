@@ -2,6 +2,7 @@ require('./tracing');
 
 const express = require('express');
 const cors = require('cors');
+const morgan = require('morgan');
 const dotenv = require('dotenv');
 const cartRoutes = require('./routes/cart');
 const { connectRedis } = require('./config/redis');
@@ -13,6 +14,8 @@ const PORT = process.env.PORT || 3003;
 
 // Middleware
 app.use(cors());
+// Morgan HTTP request logger
+app.use(morgan(':method :url :status :res[content-length] - :response-time ms'));
 app.use(express.json());
 
 // Routes

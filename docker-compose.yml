@@ -47,6 +47,19 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
     ports:
       - "9090:9090"
+  # -------------------- PROMTAIL --------------------
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/log:/var/log
+      - ./promtail:/etc/promtail
+    command: -config.file=/etc/promtail/promtail-config.yaml
+    depends_on:
+      - loki
+    networks:
+      - default
 
   # -------------------- LOKI (LOGS) --------------------
   loki:
@@ -97,6 +110,9 @@ services:
       JWT_SECRET: your-secret-key
       OTEL_SERVICE_NAME: user-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    volumes:
+      - ./services/user-service:/app
+      - user_node_modules:/app/node_modules
     depends_on:
       - postgres
       - otel-collector
@@ -112,6 +128,9 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ecommerce_products
       OTEL_SERVICE_NAME: product-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    volumes:
+      - ./services/product-service:/app
+      - product_node_modules:/app/node_modules
     depends_on:
       - postgres
       - otel-collector
@@ -129,6 +148,9 @@ services:
       PRODUCT_SERVICE_URL: http://product-service:3002
       OTEL_SERVICE_NAME: cart-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    volumes:
+      - ./services/cart-service:/app
+      - cart_node_modules:/app/node_modules
     depends_on:
       - postgres
       - redis
@@ -146,6 +168,9 @@ services:
       PRODUCT_SERVICE_URL: http://product-service:3002
       OTEL_SERVICE_NAME: inventory-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    volumes:
+      - ./services/inventory-service:/app
+      - inventory_node_modules:/app/node_modules
     depends_on:
       - postgres
       - product-service
@@ -165,6 +190,9 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:3005
       OTEL_SERVICE_NAME: order-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    volumes:
+      - ./services/order-service:/app
+      - order_node_modules:/app/node_modules
     depends_on:
       - postgres
       - cart-service
@@ -186,6 +214,9 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:3005
       OTEL_SERVICE_NAME: api-gateway
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    volumes:
+      - ./api-gateway:/app
+      - gateway_node_modules:/app/node_modules
     depends_on:
       - user-service
       - product-service
@@ -202,6 +233,9 @@ services:
       - "5173:5173"
     environment:
       VITE_API_URL: http://localhost:3000
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
     depends_on:
       - api-gateway
 
@@ -211,3 +245,10 @@ volumes:
   grafana_data:
   loki_data:
   tempo_data:
+  user_node_modules:
+  product_node_modules:
+  cart_node_modules:
+  inventory_node_modules:
+  order_node_modules:
+  gateway_node_modules:
+  frontend_node_modules:

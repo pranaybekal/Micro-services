@@ -1,0 +1,29 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker_logs
+    docker_sd_configs:
+      - host: "unix:///var/run/docker.sock"
+    relabel_configs:
+      # Always make sure container name is captured
+      - source_labels: [__meta_docker_container_name]
+        target_label: container
+
+      # Use the compose service label for querying in Grafana
+      - source_labels: [__meta_docker_container_label_com_docker_compose_service]
+        target_label: compose_service
+
+      # Remove the leading slash from container names
+      - action: replace
+        source_labels: [container]
+        regex: "^/(.*)"
+        target_label: container
+

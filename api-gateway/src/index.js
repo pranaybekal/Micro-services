@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const morgan = require('morgan');
 const dotenv = require('dotenv');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
@@ -19,6 +20,8 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+// Morgan HTTP request logger
+app.use(morgan(':method :url :status :response-time ms'));
 
 // ⚠️ IMPORTANT:
 // ❌ DO NOT USE express.json() IN A PROXY GATEWAY

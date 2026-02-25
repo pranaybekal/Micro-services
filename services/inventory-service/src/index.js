@@ -1,6 +1,7 @@
 require('./tracing');
 const express = require('express');
 const cors = require('cors');
+const morgan = require('morgan');
 const dotenv = require('dotenv');
 const inventoryRoutes = require('./routes/inventory');
 const { initDatabase } = require('./config/database');
@@ -12,6 +13,8 @@ const PORT = process.env.PORT || 3005;
 
 // Middleware
 app.use(cors());
+// Morgan HTTP request logger
+app.use(morgan(':method :url :status :res[content-length] - :response-time ms'));
 app.use(express.json());
 
 // Routes

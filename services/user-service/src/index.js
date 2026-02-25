@@ -5,6 +5,7 @@ require("dotenv").config();
 
 const express = require('express');
 const cors = require('cors');
+const morgan = require('morgan');
 const { metrics } = require('@opentelemetry/api');
 
 const authRoutes = require('./routes/auth');
@@ -16,6 +17,8 @@ const PORT = process.env.PORT || 3001;
 
 // -------------------- Middleware --------------------
 app.use(cors());
+// Morgan HTTP request logger
+app.use(morgan(':method :url :status :res[content-length] - :response-time ms'));
 app.use(express.json());
 
 // -------------------- Custom Metrics --------------------
