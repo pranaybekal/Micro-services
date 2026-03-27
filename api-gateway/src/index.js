@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const { createProxyMiddleware } = require('http-proxy-middleware');
+const client = require('prom-client'); // ✅ Prometheus
 
 dotenv.config();
 
@@ -9,7 +10,18 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // =========================
-// MIDDLEWARE
+// PROMETHEUS SETUP
+// =========================
+client.collectDefaultMetrics();
+
+const httpRequestCounter = new client.Counter({
+  name: 'api_gateway_requests_total',
+  help: 'Total API Gateway Requests',
+  labelNames: ['method', 'route', 'status'],
+});
+
+// =========================
+// CORS
 // =========================
 const corsOptions = {
   origin: 'http://localhost:5173',
@@ -19,24 +31,26 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-
-// ⚠️ IMPORTANT:
-// ❌ DO NOT USE express.json() IN A PROXY GATEWAY
-// ❌ DO NOT READ REQUEST BODY
-
 app.options('*', cors(corsOptions));
 
 // =========================
-// GLOBAL REQUEST LOGGER (SAFE)
+// REQUEST LOGGER + METRICS
 // =========================
 app.use((req, res, next) => {
   const start = Date.now();
 
   console.log(`\n➡️  [REQUEST] ${req.method} ${req.originalUrl}`);
-  console.log(`   IP: ${req.ip}`);
 
   res.on('finish', () => {
     const time = Date.now() - start;
+
+    // ✅ Prometheus metric
+    httpRequestCounter.inc({
+      method: req.method,
+      route: req.originalUrl,
+      status: res.statusCode,
+    });
+
     console.log(`⬅️  [RESPONSE] ${req.method} ${req.originalUrl}`);
     console.log(`   Status: ${res.statusCode}`);
     console.log(`   Time: ${time}ms\n`);
@@ -46,7 +60,7 @@ app.use((req, res, next) => {
 });
 
 // =========================
-// SERVICE URLS (Docker DNS)
+// SERVICE URLS
 // =========================
 const services = {
   user: 'http://user-service:3001',
@@ -68,7 +82,15 @@ app.get('/health', (req, res) => {
 });
 
 // =========================
-// PROXY HELPER (STREAMING SAFE)
+// METRICS ENDPOINT
+// =========================
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', client.register.contentType);
+  res.end(await client.register.metrics());
+});
+
+// =========================
+// PROXY HELPER
 // =========================
 const proxyWithLogs = (serviceName, target) =>
   createProxyMiddleware({
@@ -78,10 +100,7 @@ const proxyWithLogs = (serviceName, target) =>
     proxyTimeout: 30000,
 
     onProxyReq: (proxyReq, req) => {
-      console.log(
-        `🔀 [PROXY → ${serviceName}] ${req.method} ${req.originalUrl}`
-      );
-      // ✅ Let the stream pass naturally
+      console.log(`🔀 [PROXY → ${serviceName}] ${req.method} ${req.originalUrl}`);
     },
 
     onProxyRes: (proxyRes, req) => {
@@ -105,7 +124,7 @@ const proxyWithLogs = (serviceName, target) =>
   });
 
 // =========================
-// ROUTE PROXIES
+// ROUTES
 // =========================
 app.use('/api/auth', proxyWithLogs('USER', services.user));
 app.use('/api/users', proxyWithLogs('USER', services.user));

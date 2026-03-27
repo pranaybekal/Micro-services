@@ -11,28 +11,24 @@ processors:
     timeout: 5s
     send_batch_size: 1024
 
-  # 🔥 THIS IS THE KEY FIX
   resource:
     attributes:
-      - key: service.name
-        from_attribute: service.name
-        action: upsert
       - key: service.namespace
         value: ecommerce
-        action: insert
+        action: upsert
 
 exporters:
-  # ---------- TRACES ----------
+  # ---------- TRACES → TEMPO ----------
   otlphttp/tempo:
     endpoint: http://tempo:4318
 
-  # ---------- METRICS ----------
+  # ---------- METRICS → PROMETHEUS ----------
   prometheus:
     endpoint: 0.0.0.0:9464
     resource_to_telemetry_conversion:
-      enabled: true   # 🔥 VERY IMPORTANT
+      enabled: true
 
-  # ---------- LOGS ----------
+  # ---------- LOGS → LOKI (NO LABELS HERE!) ----------
   otlphttp/loki:
     endpoint: http://loki:3100/otlp
 

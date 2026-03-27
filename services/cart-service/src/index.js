@@ -1,29 +1,37 @@
 require('./tracing');
 
 const express = require('express');
+const app = express();   // ✅ MUST be before routes
+
 const cors = require('cors');
 const dotenv = require('dotenv');
 const cartRoutes = require('./routes/cart');
 const { connectRedis } = require('./config/redis');
 
+const client = require('prom-client');
+
 dotenv.config();
 
-const app = express();
-const PORT = process.env.PORT || 3003;
+// ✅ metrics
+client.collectDefaultMetrics();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Routes
 app.use('/api/cart', cartRoutes);
 
-// Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'cart-service' });
 });
 
-// Connect to Redis and start server
+// ✅ metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', client.register.contentType);
+  res.end(await client.register.metrics());
+});
+
+const PORT = process.env.PORT || 3003;
+
 connectRedis()
   .then(() => {
     app.listen(PORT, () => {

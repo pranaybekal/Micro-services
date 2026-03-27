@@ -7,3 +7,14 @@ scrape_configs:
     static_configs:
       - targets:
           - "otel-collector:9464"
+
+  - job_name: "microservices"
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "api-gateway:3000"
+          - "product-service:3002"
+          - "cart-service:3003"
+          - "order-service:3004"
+          - "inventory-service:3005"
+          - "user-service:3001"
