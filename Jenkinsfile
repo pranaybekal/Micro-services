@@ -6,115 +6,15 @@ pipeline {
         APP_URL = "http://localhost:3000"
         PROMETHEUS_URL = "http://localhost:9090"
         LOKI_URL = "http://localhost:3100"
-        GRAFANA_URL = "http://localhost:3006" 
+        GRAFANA_URL = "http://localhost:3006"
     }
 
     stages {
 
         stage('1. Checkout Code') {
             steps {
-                echo "✅ Code fetched from Project_final branch by Jenkins SCM"
-            }pipeline {
-    agent any
-
-    environment {
-        COMPOSE = "docker compose"
-        PROJECT_NAME = "microservices"
-    }
-
-    stages {
-
-        stage('1. Checkout Code') {
-            steps {
-                echo "Cloning repository..."
-                git 'https://github.com/pranaybekal/Micro-services.git'
+                echo "✅ Code already checked out by Jenkins SCM"
             }
-        }
-
-        stage('2. Show Project Structure') {
-            steps {
-                sh '''
-                echo "Listing project files..."
-                ls -la
-                '''
-            }
-        }
-
-        stage('3. Build All Services') {
-            steps {
-                sh '''
-                echo "Building Docker images..."
-                docker compose build
-                '''
-            }
-        }
-
-        stage('4. Stop Old Deployment') {
-            steps {
-                sh '''
-                echo "Stopping old containers..."
-                docker compose down
-                '''
-            }
-        }
-
-        stage('5. Deploy New Version') {
-            steps {
-                sh '''
-                echo "Starting all services..."
-                docker compose up -d
-                '''
-            }
-        }
-
-        stage('6. Wait for Services') {
-            steps {
-                sh 'sleep 20'
-            }
-        }
-
-        stage('7. Health Check') {
-            steps {
-                sh '''
-                echo "Checking API Gateway..."
-                curl -f http://localhost:3000 || exit 1
-                '''
-            }
-        }
-
-        stage('8. Check Logs (Debug)') {
-            steps {
-                sh '''
-                echo "Checking service logs..."
-                docker logs user-service --tail 20 || true
-                docker logs product-service --tail 20 || true
-                '''
-            }
-        }
-
-        stage('9. Error Detection') {
-            steps {
-                sh '''
-                echo "Checking for errors in logs..."
-                if docker logs product-service | grep -i error; then
-                    echo "Error found in product-service"
-                    exit 1
-                fi
-                '''
-            }
-        }
-
-    }
-
-    post {
-        success {
-            echo '✅ Deployment Successful!'
-        }
-        failure {
-            echo '❌ Deployment Failed!'
-        }
-    }
-}
         }
 
         stage('2. Show Project Structure') {
@@ -129,7 +29,7 @@ pipeline {
         stage('3. Build Docker Images') {
             steps {
                 sh '''
-                echo "🐳 Building all microservices..."
+                echo "🐳 Building all services..."
                 docker-compose build
                 '''
             }
@@ -144,10 +44,10 @@ pipeline {
             }
         }
 
-        stage('5. Deploy Microservices') {
+        stage('5. Deploy Services') {
             steps {
                 sh '''
-                echo "🚀 Starting new deployment..."
+                echo "🚀 Starting services..."
                 docker-compose up -d
                 '''
             }
@@ -155,73 +55,66 @@ pipeline {
 
         stage('6. Wait for Services') {
             steps {
-                sh '''
-                echo "⏳ Waiting for services to start..."
-                sleep 25
-                '''
+                sh 'sleep 25'
             }
         }
 
-        stage('7. Health Check (API Gateway)') {
+        stage('7. Health Check') {
             steps {
                 sh '''
-                echo "🔍 Checking API Gateway..."
+                echo "🔍 Checking API..."
                 curl -f $APP_URL || exit 1
                 '''
             }
         }
 
-        stage('8. Verify Metrics (Prometheus)') {
+        stage('8. Verify Prometheus') {
             steps {
-                sh '''
-                echo "📊 Checking Prometheus..."
-                curl -f $PROMETHEUS_URL/-/ready || exit 1
-                '''
+                sh 'curl -f $PROMETHEUS_URL/-/ready || exit 1'
             }
         }
 
-        stage('9. Verify Logs (Loki)') {
+        stage('9. Verify Loki') {
             steps {
-                sh '''
-                echo "📜 Checking Loki..."
-                curl -f $LOKI_URL/ready || exit 1
-                '''
+                sh 'curl -f $LOKI_URL/ready || exit 1'
             }
         }
 
-        stage('10. Check Logs (Debug)') {
+        stage('10. Verify Grafana') {
+            steps {
+                sh 'curl -f $GRAFANA_URL/login || exit 1'
+            }
+        }
+
+        stage('11. Check Logs') {
             steps {
                 sh '''
-                echo "📄 Showing recent logs..."
                 docker-compose logs user-service --tail=20 || true
                 docker-compose logs product-service --tail=20 || true
                 '''
             }
         }
 
-        stage('11. Error Detection') {
+        stage('12. Error Detection') {
             steps {
                 sh '''
-                echo "🚨 Checking for errors in logs..."
-
                 if docker-compose logs product-service | grep -i error; then
-                    echo "❌ Error found in product-service logs"
+                    echo "❌ Error found"
                     exit 1
                 else
-                    echo "✅ No errors found"
+                    echo "✅ No errors"
                 fi
                 '''
             }
         }
-
     }
 
     post {
         success {
-            echo '🎉 CI/CD Pipeline SUCCESS - Deployment + Monitoring Verified!'
+            echo '🎉 SUCCESS - CI/CD + Monitoring Working!'
         }
         failure {
-            echo '❌ CI/CD Pipeline FAILED - Check logs above!'
+            echo '❌ FAILED - Check logs'
         }
     }
 }
