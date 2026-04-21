@@ -91,8 +91,19 @@ pipeline {
         stage('9. Verify Loki (Logs)') {
             steps {
                 sh '''
-                echo "📜 Checking Loki..."
-                curl -f $LOKI_URL/ready || exit 1
+                echo "📜 Waiting for Loki to be ready..."
+        
+                for i in {1..10}; do
+                    if curl -f $LOKI_URL/ready; then
+                        echo "✅ Loki is ready"
+                        exit 0
+                    fi
+                    echo "⏳ Loki not ready yet... retrying"
+                    sleep 5
+                done
+        
+                echo "❌ Loki failed to start"
+                exit 1
                 '''
             }
         }
