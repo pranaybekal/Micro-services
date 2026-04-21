@@ -74,7 +74,7 @@ pipeline {
             steps {
                 sh '''
                 echo "🔍 Checking API Gateway..."
-                curl -f $APP_URL || exit 1
+                curl -f $APP_URL/metrics || exit 1
                 '''
             }
         }
