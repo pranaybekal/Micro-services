@@ -93,16 +93,20 @@ pipeline {
                 sh '''
                 echo "📜 Waiting for Loki to be ready..."
         
-                for i in {1..10}; do
-                    if curl -f $LOKI_URL/ready; then
+                i=1
+                while [ $i -le 12 ]
+                do
+                    if curl -f $LOKI_URL/ready > /dev/null 2>&1; then
                         echo "✅ Loki is ready"
                         exit 0
                     fi
-                    echo "⏳ Loki not ready yet... retrying"
+        
+                    echo "⏳ Loki not ready yet... retry $i"
                     sleep 5
+                    i=$((i+1))
                 done
         
-                echo "❌ Loki failed to start"
+                echo "❌ Loki failed to start after retries"
                 exit 1
                 '''
             }
