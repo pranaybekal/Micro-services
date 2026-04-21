@@ -39,14 +39,11 @@ pipeline {
             steps {
                 sh '''
                 echo "🛑 Cleaning old containers..."
-
-                # Stop docker-compose services
-                docker-compose down || true
-
-                # Remove conflicting containers (important fix)
+        
+                # MUST delete volumes for DB re-init
+                docker-compose down -v || true
+        
                 docker rm -f grafana promtail otel-collector || true
-
-                # Clean unused Docker resources
                 docker system prune -f || true
                 '''
             }
@@ -125,8 +122,8 @@ pipeline {
             steps {
                 sh '''
                 echo "📄 Recent logs..."
-                docker-compose logs user-service --tail=20 || true
-                docker-compose logs product-service --tail=20 || true
+                docker-compose logs --tail=20 user-service || true
+                docker-compose logs --tail=20 product-service || true
                 '''
             }
         }
@@ -135,8 +132,8 @@ pipeline {
             steps {
                 sh '''
                 echo "🚨 Checking for errors..."
-
-                if docker-compose logs product-service | grep -i error; then
+        
+                if docker-compose logs | grep -i error > /dev/null; then
                     echo "❌ Error found in logs"
                     exit 1
                 else
