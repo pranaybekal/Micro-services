@@ -47,13 +47,45 @@ router.get('/', async (req, res) => {
       `SELECT * FROM inventory ORDER BY product_id`
     );
 
-    res.json(result.rows);
+    const enrichedData = await Promise.all(
+      result.rows.map(async (item) => {
+        try {
+          const productRes = await axios.get(
+            `${PRODUCT_SERVICE_URL}/api/products/${item.product_id}`
+          );
+
+          const product = productRes.data;
+
+          return {
+            product_id: item.product_id,
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            image_url: product.image_url,
+            category_id: product.category_id,
+            quantity: item.quantity
+          };
+        } catch (err) {
+          console.error('Product fetch failed:', err.message);
+
+          return {
+            product_id: item.product_id,
+            name: 'Unknown',
+            price: 0,
+            image_url: '',
+            category_id: null,
+            quantity: item.quantity
+          };
+        }
+      })
+    );
+
+    res.json(enrichedData);
   } catch (error) {
     console.error('Get all inventory error:', error.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
-
 
 // =====================================================
 // CREATE PRODUCT + INVENTORY (ADMIN FLOW)
