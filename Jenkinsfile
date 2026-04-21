@@ -35,11 +35,19 @@ pipeline {
             }
         }
 
-        stage('4. Stop Old Containers') {
+        stage('4. Stop Old Containers (Clean)') {
             steps {
                 sh '''
-                echo "🛑 Stopping old containers..."
+                echo "🛑 Cleaning old containers..."
+
+                # Stop docker-compose services
                 docker-compose down || true
+
+                # Remove conflicting containers (important fix)
+                docker rm -f grafana promtail otel-collector || true
+
+                # Clean unused Docker resources
+                docker system prune -f || true
                 '''
             }
         }
@@ -55,40 +63,53 @@ pipeline {
 
         stage('6. Wait for Services') {
             steps {
-                sh 'sleep 25'
+                sh '''
+                echo "⏳ Waiting for services..."
+                sleep 25
+                '''
             }
         }
 
-        stage('7. Health Check') {
+        stage('7. Health Check (API)') {
             steps {
                 sh '''
-                echo "🔍 Checking API..."
+                echo "🔍 Checking API Gateway..."
                 curl -f $APP_URL || exit 1
                 '''
             }
         }
 
-        stage('8. Verify Prometheus') {
-            steps {
-                sh 'curl -f $PROMETHEUS_URL/-/ready || exit 1'
-            }
-        }
-
-        stage('9. Verify Loki') {
-            steps {
-                sh 'curl -f $LOKI_URL/ready || exit 1'
-            }
-        }
-
-        stage('10. Verify Grafana') {
-            steps {
-                sh 'curl -f $GRAFANA_URL/login || exit 1'
-            }
-        }
-
-        stage('11. Check Logs') {
+        stage('8. Verify Prometheus (Metrics)') {
             steps {
                 sh '''
+                echo "📊 Checking Prometheus..."
+                curl -f $PROMETHEUS_URL/-/ready || exit 1
+                '''
+            }
+        }
+
+        stage('9. Verify Loki (Logs)') {
+            steps {
+                sh '''
+                echo "📜 Checking Loki..."
+                curl -f $LOKI_URL/ready || exit 1
+                '''
+            }
+        }
+
+        stage('10. Verify Grafana (Dashboard)') {
+            steps {
+                sh '''
+                echo "📈 Checking Grafana..."
+                curl -f $GRAFANA_URL/login || exit 1
+                '''
+            }
+        }
+
+        stage('11. Check Logs (Debug)') {
+            steps {
+                sh '''
+                echo "📄 Recent logs..."
                 docker-compose logs user-service --tail=20 || true
                 docker-compose logs product-service --tail=20 || true
                 '''
@@ -98,15 +119,18 @@ pipeline {
         stage('12. Error Detection') {
             steps {
                 sh '''
+                echo "🚨 Checking for errors..."
+
                 if docker-compose logs product-service | grep -i error; then
-                    echo "❌ Error found"
+                    echo "❌ Error found in logs"
                     exit 1
                 else
-                    echo "✅ No errors"
+                    echo "✅ No errors detected"
                 fi
                 '''
             }
         }
+
     }
 
     post {
@@ -114,7 +138,7 @@ pipeline {
             echo '🎉 SUCCESS - CI/CD + Monitoring Working!'
         }
         failure {
-            echo '❌ FAILED - Check logs'
+            echo '❌ FAILED - Check logs above!'
         }
     }
 }
