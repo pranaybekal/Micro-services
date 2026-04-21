@@ -1,4 +1,4 @@
-# 🛍️ E-Commerce Microservices Platform
+# 🛍️ E-Commerce Microservices Platforms
 
 A complete, production-ready e-commerce platform built with modern microservices architecture.
 
