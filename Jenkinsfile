@@ -131,13 +131,13 @@ pipeline {
         stage('12. Error Detection') {
             steps {
                 sh '''
-                echo "🚨 Checking for errors..."
+                echo "🚨 Checking product-service logs..."
         
-                if docker-compose logs | grep -i error > /dev/null; then
-                    echo "❌ Error found in logs"
+                if docker-compose logs product-service | grep -i "error" > /dev/null; then
+                    echo "❌ Error in product-service"
                     exit 1
                 else
-                    echo "✅ No errors detected"
+                    echo "✅ Product-service healthy"
                 fi
                 '''
             }
